@@ -207,6 +207,100 @@ def to_golden_ratio_binary(n):
     return _encode_block(b, pos, fibs)
 ```
 
+---
+
+### Versión iterativa (sin recursividad)
+
+La estructura recursiva se desenrolla de forma directa en un `while` loop. El "stack de llamadas" se reemplaza por dos variables: el bloque actual $b$ y la posición $\text{pos}$.
+
+#### Intuición
+
+En la versión recursiva, cada llamada hace exactamente una decisión:
+
+| Condición | Emite | Nuevo estado |
+|-----------|-------|--------------|
+| $\text{pos} < F_{b-2}$ | `"10"` | $(b-2,\; \text{pos})$ |
+| $\text{pos} \geq F_{b-2}$ | `"1"` | $(b-1,\; \text{pos} - F_{b-2})$ |
+
+Cada decisión reduce $b$ en al menos 1, por lo que el loop termina en $O(\log_\phi N)$ iteraciones. Los fragmentos emitidos concatenados **son** la cadena de bits final.
+
+#### Traza para $N = 9$
+
+| $b$ | $\text{pos}$ | $F_{b-2}$ | Decisión | Emite |
+|-----|-------------|-----------|----------|-------|
+| 5   | 1           | $F_3=2$   | $1 < 2$  | `10`  |
+| 3   | 1           | $F_1=1$   | $1 \geq 1$ | `1` |
+| 2   | 0           | —         | base     | `11`  |
+
+Resultado: `10` + `1` + `11` = **`10111`** ✓
+
+#### Algoritmo iterativo
+
+$$\text{Mientras } b > 2:$$
+$$\quad \text{si } \text{pos} < F_{b-2}: \quad \text{emitir } \texttt{"10"},\quad b \leftarrow b-2$$
+$$\quad \text{si } \text{pos} \geq F_{b-2}: \quad \text{emitir } \texttt{"1"},\quad \text{pos} \leftarrow \text{pos} - F_{b-2},\quad b \leftarrow b-1$$
+$$\text{Al salir: emitir } \texttt{"11"} \text{ (si } b=2\text{) o } \texttt{"1"} \text{ (si } b=1\text{)}$$
+
+#### Implementación de referencia iterativa (Python)
+
+```python
+def to_golden_ratio_binary_iterative(n):
+    fibs = _generate_fibs(n)
+    b = find_block(n, fibs)
+    pos = n - fibs[b]
+
+    parts = []
+    while b > 2:
+        f_b_minus_2 = fibs[b - 3]     # F_{b-2}
+        if pos < f_b_minus_2:
+            parts.append("10")
+            b -= 2
+        else:
+            parts.append("1")
+            pos -= f_b_minus_2
+            b -= 1
+
+    parts.append("11" if b == 2 else "1")
+    return "".join(parts)
+```
+
+---
+
+### Comparación: recursiva vs. iterativa
+
+Ambas funciones producen resultados idénticos. La diferencia es de implementación, no de resultado.
+
+#### Ejecución sobre los bloques 1 al 4 (N = 1 … 7)
+
+| $N$ | Bloque | Recursivo | Iterativo | Igual |
+|-----|--------|-----------|-----------|-------|
+| 1   | 1      | `1`       | `1`       | ✓     |
+| 2   | 2      | `11`      | `11`      | ✓     |
+| 3   | 3      | `101`     | `101`     | ✓     |
+| 4   | 3      | `111`     | `111`     | ✓     |
+| 5   | 4      | `1011`    | `1011`    | ✓     |
+| 6   | 4      | `1101`    | `1101`    | ✓     |
+| 7   | 4      | `1111`    | `1111`    | ✓     |
+
+#### Diferencias de diseño
+
+| | Recursiva | Iterativa |
+|---|---|---|
+| **Estructura de control** | llamadas a `_encode_block` | `while b > 2` |
+| **Estado** | call stack implícito | dos variables `b`, `pos` |
+| **Legibilidad** | fiel a la definición matemática | más cercana al hardware |
+| **Riesgo** | stack overflow para $N$ muy grande | ninguno |
+| **Complejidad** | $O(\log_\phi N)$ llamadas | $O(\log_\phi N)$ iteraciones |
+
+Ambas tienen la misma complejidad asintótica porque cada llamada recursiva corresponde exactamente a una iteración del loop: no hay ramificación, sólo descenso lineal en $b$.
+
+#### ¿Cuándo usar cada una?
+
+- **Recursiva** — cuando la claridad del código importa más que el rendimiento. La estructura del algoritmo refleja directamente la definición del bloque fractal.
+- **Iterativa** — en producción, o cuando $N$ es suficientemente grande como para que la profundidad del stack sea una preocupación. Para $N \approx 10^{1000}$, el bloque $b \approx 4800$, lo que excede el límite de recursión por defecto de Python (1000).
+
+---
+
 #### Tabla completa (N = 1 … 12)
 
 | $N$ | Bloque | bits | Representación |
