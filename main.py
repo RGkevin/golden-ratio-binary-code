@@ -23,8 +23,6 @@ def main():
         igual = "✓" if rec == ite else "✗"
         print(f"{n:>3} | {bloque:>6} | {rec:>12} | {ite:>12} | {igual:>5}")
 
-    print('foo')
-
     # Ejemplo específico del enunciado
     n = 5
     print(f"to_golden_ratio_binary({n})            = {to_golden_ratio_binary(n)}")
