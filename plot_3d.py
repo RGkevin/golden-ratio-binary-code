@@ -51,8 +51,12 @@ def block_start_col(block_num: int, max_bits: int) -> int:
 
 # ── Scene builders ────────────────────────────────────────────────────────────
 
-def build_cell_list(num_blocks: int):
-    """Compute (col, y, z, color, hover) for every visible bit cell."""
+def build_cell_list(num_blocks: int, clip: bool = True):
+    """Compute (col, y, z, color, hover) for every visible bit cell.
+
+    clip=True  — hides cells already occupied by the block below (original behaviour).
+    clip=False — renders every cell, letting overlapping blocks show through.
+    """
     max_bits  = num_blocks
     cell_list = []
     label_pts = []  # [(x, y, z), label_str]
@@ -73,8 +77,7 @@ def build_cell_list(num_blocks: int):
             label_col = None
 
             for col_idx in range(start_col, max_bits):
-                # Skip cells already occupied by the block below
-                if block_num > 1 and col_idx >= prev_start_col and row_idx < len(prev_entries):
+                if clip and block_num > 1 and col_idx >= prev_start_col and row_idx < len(prev_entries):
                     continue
                 color = block_color if bits[col_idx] == "1" else EMPTY_C
                 cell_list.append((col_idx, y_pos, row_idx, color, hover))
@@ -139,7 +142,7 @@ def build_scene_layout(num_blocks: int) -> dict:
                 ticktext=[f"B{b}" for b in range(1, num_blocks + 1)],
                 tickfont=dict(size=8),
             ),
-            zaxis=dict(title="Posición en bloque", tickfont=dict(size=8)),
+            zaxis=dict(title="Posición en bloque", tickfont=dict(size=8), autorange="reversed"),
             camera=DEFAULT_CAMERA,
             bgcolor="#F0F0F0",
             aspectmode="manual",
@@ -148,8 +151,8 @@ def build_scene_layout(num_blocks: int) -> dict:
     )
 
 
-def build_figures(num_blocks: int) -> tuple[dict, dict]:
-    cell_list, label_pts, prime_pts = build_cell_list(num_blocks)
+def build_figures(num_blocks: int, clip: bool = True) -> tuple[dict, dict]:
+    cell_list, label_pts, prime_pts = build_cell_list(num_blocks, clip=clip)
     prime_lines, labels = build_overlay_traces(num_blocks, label_pts, prime_pts)
     layout = build_scene_layout(num_blocks)
 
@@ -166,20 +169,21 @@ def build_figures(num_blocks: int) -> tuple[dict, dict]:
 
 # ── Figure cache ──────────────────────────────────────────────────────────────
 
-_fig_cache: dict[int, tuple] = {}
-_fig_cache[10] = build_figures(10)
+_fig_cache: dict[tuple, tuple] = {}
+_fig_cache[(10, True)] = build_figures(10, clip=True)
 
 
-def get_figures(num_blocks: int) -> tuple[dict, dict]:
-    if num_blocks not in _fig_cache:
-        _fig_cache[num_blocks] = build_figures(num_blocks)
-    return _fig_cache[num_blocks]
+def get_figures(num_blocks: int, clip: bool = True) -> tuple[dict, dict]:
+    key = (num_blocks, clip)
+    if key not in _fig_cache:
+        _fig_cache[key] = build_figures(num_blocks, clip=clip)
+    return _fig_cache[key]
 
 
 # ── Dash app + callbacks ──────────────────────────────────────────────────────
 
 app = dash.Dash(__name__)
-app.layout = create_layout(_fig_cache[10][0])
+app.layout = create_layout(_fig_cache[(10, True)][0])
 
 
 @app.callback(
@@ -188,12 +192,24 @@ app.layout = create_layout(_fig_cache[10][0])
     Output("slider-label", "children"),
     Input("toggle-btn",    "n_clicks"),
     Input("block-slider",  "value"),
+    Input("clip-store",    "data"),
 )
-def update_view(n_clicks, num_blocks):
-    sphere_fig, cube_fig = get_figures(num_blocks)
+def update_view(n_clicks, num_blocks, clip):
+    sphere_fig, cube_fig = get_figures(num_blocks, clip=clip)
     if n_clicks % 2 == 0:
         return sphere_fig, "⬡  Switch to Cubes",   f"Bloques: {num_blocks}"
     return     cube_fig,  "⬜  Switch to Spheres",  f"Bloques: {num_blocks}"
+
+
+@app.callback(
+    Output("clip-store",  "data"),
+    Output("clip-btn",    "children"),
+    Input("clip-btn",     "n_clicks"),
+)
+def toggle_clip(n_clicks):
+    clipping = (n_clicks or 0) % 2 == 0
+    label = "◼  Ocultar overlap" if clipping else "◻  Mostrar overlap"
+    return clipping, label
 
 
 @app.callback(
