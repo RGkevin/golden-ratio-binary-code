@@ -130,19 +130,19 @@ def build_scene_layout(num_blocks: int) -> dict:
         paper_bgcolor="#1A1A1A",
         scene=dict(
             xaxis=dict(
-                title="Bit de Fibonacci",
+                title="X — Bit de Fibonacci",
                 tickvals=[i + 0.5 for i in range(max_bits)],
                 ticktext=fib_labels,
                 tickfont=dict(size=8),
                 autorange="reversed",
             ),
             yaxis=dict(
-                title="Bloque",
+                title="Y — Bloque",
                 tickvals=[b - 0.5 for b in range(1, num_blocks + 1)],
                 ticktext=[f"B{b}" for b in range(1, num_blocks + 1)],
                 tickfont=dict(size=8),
             ),
-            zaxis=dict(title="Posición en bloque", tickfont=dict(size=8), autorange="reversed"),
+            zaxis=dict(title="Z — Posición en bloque", tickfont=dict(size=8), autorange="reversed"),
             camera=DEFAULT_CAMERA,
             bgcolor="#F0F0F0",
             aspectmode="manual",
@@ -170,7 +170,7 @@ def build_figures(num_blocks: int, clip: bool = True) -> tuple[dict, dict]:
 # ── Figure cache ──────────────────────────────────────────────────────────────
 
 _fig_cache: dict[tuple, tuple] = {}
-_fig_cache[(10, True)] = build_figures(10, clip=True)
+_fig_cache[(5, True)] = build_figures(5, clip=True)
 
 
 def get_figures(num_blocks: int, clip: bool = True) -> tuple[dict, dict]:
@@ -183,7 +183,7 @@ def get_figures(num_blocks: int, clip: bool = True) -> tuple[dict, dict]:
 # ── Dash app + callbacks ──────────────────────────────────────────────────────
 
 app = dash.Dash(__name__)
-app.layout = create_layout(_fig_cache[(10, True)][0])
+app.layout = create_layout(_fig_cache[(5, True)][0])
 
 
 @app.callback(

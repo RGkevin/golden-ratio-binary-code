@@ -3,6 +3,14 @@ import math
 PHI = (1 + math.sqrt(5)) / 2
 SQRT5 = math.sqrt(5)
 
+_FIB_CACHE: list[int] = [1, 1]
+
+
+def _get_fibs_cached(n: int) -> list[int]:
+    while _FIB_CACHE[-1] <= n:
+        _FIB_CACHE.append(_FIB_CACHE[-1] + _FIB_CACHE[-2])
+    return _FIB_CACHE
+
 
 def _generate_fibs(n: int) -> list[int]:
     """Returns [F1=1, F2=1, F3=2, ...] with enough terms to cover n."""
@@ -73,6 +81,37 @@ def to_golden_ratio_binary(n: int) -> str:
     b = find_block(n, fibs)
     pos = n - fibs[b]  # 0-indexed position within block b
     return _encode_block(b, pos, fibs)
+
+
+def _iter_block_bits(b: int, fibs: list[int], prefix: str = "") -> "Generator[str, None, None]":
+    if b == 1:
+        yield prefix + "1"
+        return
+    if b == 2:
+        yield prefix + "11"
+        return
+    yield from _iter_block_bits(b - 2, fibs, prefix + "10")
+    yield from _iter_block_bits(b - 1, fibs, prefix + "1")
+
+
+def encode_block(b: int) -> list[tuple[int, str]]:
+    """
+    Return [(n, bits), ...] for every number in block b, in order.
+
+    Uses the fractal block structure to generate all codes sharing a single
+    Fibonacci table — much faster than calling to_golden_ratio_binary per element.
+
+    Example:
+        >>> encode_block(4)
+        [(5, '1011'), (6, '1101'), (7, '1111')]
+    """
+    if b < 1:
+        raise ValueError("b must be >= 1")
+    fibs: list[int] = [1, 1]
+    while len(fibs) <= b + 1:
+        fibs.append(fibs[-1] + fibs[-2])
+    block_start = fibs[b]
+    return [(block_start + i, bits) for i, bits in enumerate(_iter_block_bits(b, fibs))]
 
 
 def to_golden_ratio_binary_iterative(n: int) -> str:
