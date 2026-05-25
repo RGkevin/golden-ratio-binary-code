@@ -51,41 +51,35 @@ def block_start_col(block_num: int, max_bits: int) -> int:
 
 # ── Scene builders ────────────────────────────────────────────────────────────
 
-def build_cell_list(num_blocks: int, clip: bool = True):
-    """Compute (col, y, z, color, hover) for every visible bit cell.
-
-    clip=True  — hides cells already occupied by the block below (original behaviour).
-    clip=False — renders every cell, letting overlapping blocks show through.
-    """
+def build_cell_list(num_blocks: int):
+    """Compute (col, y, z, color, hover) for every visible bit cell."""
     max_bits  = num_blocks
     cell_list = []
     label_pts = []  # [(x, y, z), label_str]
     prime_pts = []  # [(x, y, z)]
 
     for block_num in range(1, num_blocks + 1):
-        entries        = blocks_data[block_num]
-        y_pos          = block_num - 1
-        start_col      = block_start_col(block_num, max_bits)
-        prev_entries   = blocks_data.get(block_num - 1, [])
-        prev_start_col = block_start_col(block_num - 1, max_bits)
-        block_color    = BLOCK_SHADES[block_num - 1]
+        entries     = blocks_data[block_num]
+        y_pos       = block_num - 1
+        start_col   = block_start_col(block_num, max_bits)
+        block_color = BLOCK_SHADES[block_num - 1]
 
+        z_offset = -(len(entries) - 1)
         for row_idx, e in enumerate(entries):
+            z_pos   = row_idx + z_offset
             bits    = e.bits.zfill(max_bits)
             hover   = (f"N = {e.n}  ({'primo' if e.is_prime else 'compuesto'})<br>"
                        f"Bloque {e.block}<br>Bits: {e.bits}")
             label_col = None
 
             for col_idx in range(start_col, max_bits):
-                if clip and block_num > 1 and col_idx >= prev_start_col and row_idx < len(prev_entries):
-                    continue
                 color = block_color if bits[col_idx] == "1" else EMPTY_C
-                cell_list.append((col_idx, y_pos, row_idx, color, hover))
+                cell_list.append((col_idx, y_pos, z_pos, color, hover))
                 if bits[col_idx] == "1":
                     label_col = col_idx
 
             if label_col is not None:
-                pt = (label_col + 0.5, y_pos + 0.5, row_idx + 0.5)
+                pt = (label_col + 0.5, y_pos + 0.5, z_pos + 0.5)
                 label_pts.append((pt, str(e.n)))
                 if e.is_prime:
                     prime_pts.append(pt)
@@ -151,8 +145,8 @@ def build_scene_layout(num_blocks: int) -> dict:
     )
 
 
-def build_figures(num_blocks: int, clip: bool = True) -> tuple[dict, dict]:
-    cell_list, label_pts, prime_pts = build_cell_list(num_blocks, clip=clip)
+def build_figures(num_blocks: int) -> tuple[dict, dict]:
+    cell_list, label_pts, prime_pts = build_cell_list(num_blocks)
     prime_lines, labels = build_overlay_traces(num_blocks, label_pts, prime_pts)
     layout = build_scene_layout(num_blocks)
 
@@ -169,21 +163,20 @@ def build_figures(num_blocks: int, clip: bool = True) -> tuple[dict, dict]:
 
 # ── Figure cache ──────────────────────────────────────────────────────────────
 
-_fig_cache: dict[tuple, tuple] = {}
-_fig_cache[(5, True)] = build_figures(5, clip=True)
+_fig_cache: dict[int, tuple] = {}
+_fig_cache[5] = build_figures(5)
 
 
-def get_figures(num_blocks: int, clip: bool = True) -> tuple[dict, dict]:
-    key = (num_blocks, clip)
-    if key not in _fig_cache:
-        _fig_cache[key] = build_figures(num_blocks, clip=clip)
-    return _fig_cache[key]
+def get_figures(num_blocks: int) -> tuple[dict, dict]:
+    if num_blocks not in _fig_cache:
+        _fig_cache[num_blocks] = build_figures(num_blocks)
+    return _fig_cache[num_blocks]
 
 
 # ── Dash app + callbacks ──────────────────────────────────────────────────────
 
 app = dash.Dash(__name__)
-app.layout = create_layout(_fig_cache[(5, True)][0])
+app.layout = create_layout(_fig_cache[5][0])
 
 
 @app.callback(
@@ -192,24 +185,12 @@ app.layout = create_layout(_fig_cache[(5, True)][0])
     Output("slider-label", "children"),
     Input("toggle-btn",    "n_clicks"),
     Input("block-slider",  "value"),
-    Input("clip-store",    "data"),
 )
-def update_view(n_clicks, num_blocks, clip):
-    sphere_fig, cube_fig = get_figures(num_blocks, clip=clip)
+def update_view(n_clicks, num_blocks):
+    sphere_fig, cube_fig = get_figures(num_blocks)
     if n_clicks % 2 == 0:
         return sphere_fig, "⬡  Switch to Cubes",   f"Bloques: {num_blocks}"
     return     cube_fig,  "⬜  Switch to Spheres",  f"Bloques: {num_blocks}"
-
-
-@app.callback(
-    Output("clip-store",  "data"),
-    Output("clip-btn",    "children"),
-    Input("clip-btn",     "n_clicks"),
-)
-def toggle_clip(n_clicks):
-    clipping = (n_clicks or 0) % 2 == 0
-    label = "◼  Ocultar overlap" if clipping else "◻  Mostrar overlap"
-    return clipping, label
 
 
 @app.callback(
