@@ -28,9 +28,9 @@ BLOCK_SHADES = [
 ]
 
 DEFAULT_CAMERA = dict(
-    eye=dict(x=0.0625, y=-7.3321, z=-0.1558),
-    up=dict(x=-0.0026, y=-0.0213, z=0.9998),
-    center=dict(x=0, y=0, z=0),
+    eye=dict(x=4.6557, y=-3.16, z=4.6444),
+    up=dict(x=-0.33, y=-0.9008, z=-0.2821),
+    center=dict(x=-0.0, y=0.0, z=-0.0),
 )
 
 # ── Load fractal data ─────────────────────────────────────────────────────────
