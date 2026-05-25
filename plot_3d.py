@@ -1,5 +1,5 @@
 import dash
-from dash import Input, Output
+from dash import Input, Output, Patch
 import plotly.graph_objects as go
 
 from kev_fractal import build_kev_fractal
@@ -20,8 +20,8 @@ BLOCK_SHADES = [
     "#06D6A0",  # B5  — teal
     "#118AB2",  # B6  — blue
     "#5E60CE",  # B7  — indigo
-    "#9B5DE5",  # B8  — purple
-    "#F72585",  # B9  — pink
+    "#00ccff",  # B8  — purple
+    "#cc00ff",  # B9  — pink
     "#3A0CA3",  # B10 — deep purple
     "#00B4D8",  # B11 — sky blue
     "#2DC653",  # B12 — green
@@ -73,23 +73,26 @@ def build_cell_list(num_blocks: int):
             label_col = None
 
             for col_idx in range(start_col, max_bits):
-                color = block_color if bits[col_idx] == "1" else EMPTY_C
+                if bits[col_idx] == "1":
+                    color = "red" if (e.is_prime and col_idx == start_col) else block_color
+                else:
+                    color = EMPTY_C
                 cell_list.append((col_idx, y_pos, z_pos, color, hover))
                 if bits[col_idx] == "1":
                     label_col = col_idx
 
             if label_col is not None:
-                pt = (label_col + 0.5, y_pos + 0.5, z_pos + 0.5)
-                label_pts.append((pt, str(e.n)))
+                label_pts.append(((label_col + 0.5, y_pos + 0.5, z_pos + 0.5), str(e.n)))
                 if e.is_prime:
-                    prime_pts.append(pt)
+                    prime_pts.append((start_col + 0.5, y_pos + 0.5, z_pos + 0.5))
 
     return cell_list, label_pts, prime_pts
 
 
 def build_overlay_traces(num_blocks: int, label_pts, prime_pts):
-    """Black lines from N=1 to all primes, plus number labels."""
-    origin = (num_blocks - 0.5, 0.5, 0.5)  # position of N=1
+    """Lines from N=1 (block 1, first bit) to the last bit of each prime."""
+    # N=1 sits in block 1: y=0, z=0, col = max_bits-1 (start_col for block 1)
+    origin = (num_blocks - 1 + 0.5, 0 + 0.5, 0 + 0.5)
 
     line_xs, line_ys, line_zs = [], [], []
     for x, y, z in prime_pts:
@@ -99,7 +102,7 @@ def build_overlay_traces(num_blocks: int, label_pts, prime_pts):
 
     prime_lines = go.Scatter3d(
         x=line_xs, y=line_ys, z=line_zs, mode="lines",
-        line=dict(color="black", width=1), opacity=0.5, hoverinfo="skip",
+        line=dict(color="black", width=3), opacity=0.5, hoverinfo="skip",
     )
 
     if label_pts:
@@ -191,6 +194,28 @@ def update_view(n_clicks, num_blocks):
     if n_clicks % 2 == 0:
         return sphere_fig, "⬡  Switch to Cubes",   f"Bloques: {num_blocks}"
     return     cube_fig,  "⬜  Switch to Spheres",  f"Bloques: {num_blocks}"
+
+
+@app.callback(
+    Output("lines-store", "data"),
+    Output("lines-btn",   "children"),
+    Input("lines-btn",    "n_clicks"),
+)
+def toggle_lines(n_clicks):
+    visible = (n_clicks or 0) % 2 == 0
+    label = "╱  Ocultar líneas" if visible else "╱  Mostrar líneas"
+    return visible, label
+
+
+@app.callback(
+    Output("graph", "figure", allow_duplicate=True),
+    Input("lines-store", "data"),
+    prevent_initial_call=True,
+)
+def apply_lines_visibility(visible):
+    patched = Patch()
+    patched["data"][-2]["visible"] = visible
+    return patched
 
 
 @app.callback(

@@ -49,6 +49,7 @@ SLIDER_PANEL_STYLE = {
 def create_layout(initial_figure):
     return html.Div([
         dcc.Store(id="camera-store"),
+        dcc.Store(id="lines-store", data=True),
 
         dcc.Loading(
             dcc.Graph(
@@ -83,6 +84,8 @@ def create_layout(initial_figure):
                     n_clicks=0, style=BUTTON_STYLE),
         html.Button("📷  Camera", id="camera-btn",
                     n_clicks=0, style={**BUTTON_STYLE, "left": "172px"}),
+        html.Button("╱  Ocultar líneas", id="lines-btn",
+                    n_clicks=0, style={**BUTTON_STYLE, "left": "280px"}),
         html.Pre(id="camera-panel", style=PANEL_STYLE),
 
     ], style={"margin": 0, "padding": 0, "overflow": "hidden"})
